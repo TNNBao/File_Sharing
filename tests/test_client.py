@@ -1,21 +1,18 @@
-import unittest
-from peer.client import PeerClient
+import os 
+import socket
 
-class TestPeerClient(unittest.TestCase):
-    def setUp(self):
-        self.client = PeerClient()
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect(("localhost", 9999))
 
-    def test_register_file(self):
-        # Mock method call and response
-        pass
+file = open(r"D:/CODE/Python_project/File_Sharing/assets/images/auth.png", "rb")
+file_size = os.path.getsize(r"D:/CODE/Python_project/File_Sharing/assets/images/auth.png")
 
-    def test_search_file(self):
-        # Mock method call and response
-        pass
+client.send("received file".encode())
+client.send(str(file_size).encode())
 
-    def test_download_file(self):
-        # Mock method call and response
-        pass
+data = file.read()
+client.sendall(data)
+client.send(b"<END>")
 
-if __name__ == '__main__':
-    unittest.main()
+file.close()
+client.close()

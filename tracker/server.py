@@ -1,56 +1,38 @@
-# tracker/server.py
 import asyncio
-import json
-from tracker.database import Database
+from tracker.database import initialize_db, add_peer, get_all_peers, remove_peer
 
 class TrackerServer:
-    def __init__(self, host='localhost', port=8000):
-        self.host = host
-        self.port = port
-        self.db = Database()
+    def __init__(self):
+        self.peers = {}
+        initialize_db()
 
-    async def handle_client(self, reader, writer):
-        addr = writer.get_extra_info('peername')
-        print(f"Connected by {addr}")
-        try:
-            while True:
-                data = await reader.read(4096)
-                if not data:
-                    break
-                message = data.decode('utf-8')
-                print(f"Received from {addr}: {message}")
-                response = self.process_message(message)
-                writer.write(json.dumps(response).encode('utf-8'))
-                await writer.drain()
-        except Exception as e:
-            print(f"Error: {e}")
-        finally:
-            writer.close()
-            await writer.wait_closed()
-            print(f"Connection closed: {addr}")
+    async def handle_peer(self, reader, writer):
+        data = await reader.read(100)
+        message = data.decode()
+        ip = writer.get_extra_info('peername')[0]
 
-    def process_message(self, message):
-        try:
-            data = json.loads(message)
-            action = data.get('action')
-            if action == 'register':
-                filename = data.get('filename')
-                peer = data.get('peer')
-                self.db.add_peer(filename, peer)
-                return {'status': 'success'}
-            elif action == 'search':
-                filename = data.get('filename')
-                peers = self.db.get_peers(filename)
-                return {'peers': peers}
-            else:
-                return {'status': 'invalid_action'}
-        except json.JSONDecodeError:
-            return {'status': 'invalid_json'}
+        if message.startswith('REGISTER'):
+            port, shared_files = message.split()[1:3]
+            self.peers[ip] = (port, shared_files)
+            add_peer(ip, port, shared_files)
+            writer.write(f"Registered with IP {ip}".encode())
+        elif message.startswith('UNREGISTER'):
+            remove_peer(ip)
+            if ip in self.peers:
+                del self.peers[ip]
+            writer.write(f"Unregistered IP {ip}".encode())
+        elif message.startswith('GET_PEERS'):
+            peers = get_all_peers()
+            writer.write(str(peers).encode())
+        
+        await writer.drain()
+        writer.close()
 
     async def run(self):
-        server = await asyncio.start_server(self.handle_client, self.host, self.port)
-        addr = server.sockets[0].getsockname()
-        print(f'Tracker server running on {addr}')
-
+        server = await asyncio.start_server(self.handle_peer, '0.0.0.0', 6881)
         async with server:
             await server.serve_forever()
+
+if __name__ == '__main__':
+    tracker = TrackerServer()
+    asyncio.run(tracker.run())

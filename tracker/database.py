@@ -1,31 +1,40 @@
-# tracker/database.py
 import sqlite3
 
-class Database:
-    def __init__(self, db_name='tracker.db'):
-        self.conn = sqlite3.connect(db_name)
-        self.create_tables()
+def initialize_db():
+    conn = sqlite3.connect('tracker.db')
+    cursor = conn.cursor()
 
-    def create_tables(self):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS peers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                filename TEXT NOT NULL,
-                peer_address TEXT NOT NULL
-            )
-        ''')
-        self.conn.commit()
+    # Tạo bảng peer
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS peer (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT NOT NULL,
+        port INTEGER NOT NULL,
+        shared_files TEXT
+    )
+    ''')
 
-    def add_peer(self, filename, peer_address):
-        cursor = self.conn.cursor()
-        cursor.execute('INSERT INTO peers (filename, peer_address) VALUES (?, ?)', (filename, peer_address))
-        self.conn.commit()
+    conn.commit()
+    conn.close()
 
-    def get_peers(self, filename):
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT peer_address FROM peers WHERE filename = ?', (filename,))
-        return [row[0] for row in cursor.fetchall()]
+def add_peer(ip, port, shared_files):
+    conn = sqlite3.connect('tracker.db')
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO peer (ip, port, shared_files) VALUES (?, ?, ?)', (ip, port, shared_files))
+    conn.commit()
+    conn.close()
 
-    def close(self):
-        self.conn.close()
+def get_all_peers():
+    conn = sqlite3.connect('tracker.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM peer')
+    peers = cursor.fetchall()
+    conn.close()
+    return peers
+
+def remove_peer(ip):
+    conn = sqlite3.connect('tracker.db')
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM peer WHERE ip = ?', (ip,))
+    conn.commit()
+    conn.close()
