@@ -1,0 +1,5 @@
+tqdm
+requests
+flask
+tkinter
+Pillow

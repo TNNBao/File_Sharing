@@ -1,0 +1,8 @@
+__pycache__/
+*.pyo
+*.pyd
+*.py[cod]
+
+tracker.db
+tests/
+venv/
