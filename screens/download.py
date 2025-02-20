@@ -2,6 +2,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox
 from peer.client import PeerClient
+import screens.navigation as nav
 
 class DownloadScreen:
     def __init__(self, root, client):
@@ -15,19 +16,22 @@ class DownloadScreen:
         self.frame.pack(padx=20, pady=20)
 
         self.search_label = tk.Label(self.frame, text="Enter filename to search:")
-        self.search_label.grid(row=0, column=0, sticky='w')
+        self.search_label.grid(row=1, column=0, sticky='w')
 
         self.search_entry = tk.Entry(self.frame)
-        self.search_entry.grid(row=0, column=1, pady=5)
+        self.search_entry.grid(row=1, column=1, pady=5)
 
         self.search_button = tk.Button(self.frame, text="Search", command=self.search_file)
-        self.search_button.grid(row=1, columnspan=2, pady=10)
+        self.search_button.grid(row=2, columnspan=2, pady=10)
 
         self.files_listbox = tk.Listbox(self.frame, width=50)
-        self.files_listbox.grid(row=2, columnspan=2, pady=10)
+        self.files_listbox.grid(row=3, columnspan=2, pady=10)
 
         self.download_button = tk.Button(self.frame, text="Download", command=self.download_file)
-        self.download_button.grid(row=3, columnspan=2, pady=10)
+        self.download_button.grid(row=4, columnspan=2, pady=10)
+
+        self.logout_button = tk.Button(self.frame, text="Log out", command=self.logout)
+        self.logout_button.grid(row=0, columnspan=2, sticky='ne', pady=5)
 
     def search_file(self):
         filename = self.search_entry.get()
@@ -38,10 +42,14 @@ class DownloadScreen:
 
     def update_file_list(self, filename):
         try:
-            peers = self.client.get_peers_from_tracker()
+            peers = self.client.get_peers_with_file(filename)
+            print(f"Updating file list for '{filename}', found peers: {peers}")
             self.files_listbox.delete(0, tk.END)
-            for peer in peers:
-                self.files_listbox.insert(tk.END, f"{peer['ip']}:{peer['port']} - {filename}")
+            if peers:  
+                for peer in peers:
+                    self.files_listbox.insert(tk.END, f"{peer['virtual_ip']}:{peer['port']} - {self.client.shared_files_path} {filename}")
+            else:
+                self.files_listbox.insert(tk.END, "No peers found with this file.")
         except Exception as e:
             self.show_error(f"Error fetching peers: {str(e)}")
 
@@ -52,13 +60,19 @@ class DownloadScreen:
             return
 
         peer_info = self.files_listbox.get(selected[0]).split(" - ")[0]
-        ip, port = peer_info.split(":")
+        virtual_ip, port = peer_info.split(":")
+        ip = self.client.get_ip_through_virtual_ip(virtual_ip)
         filename = self.search_entry.get()
 
-        threading.Thread(target=self.run_download, args=(ip, port, filename)).start()
+        threading.Thread(target=self.run_download, args=(ip, virtual_ip, port, filename)).start()
 
-    def run_download(self, ip, port, filename):
-        self.client.download_file(ip, int(port), filename)
+    def run_download(self, ip, virtual_ip, port, filename):
+        self.client.download_file(ip, virtual_ip, int(port), filename)
+    
+    def logout(self):
+        self.client.logout() 
+        self.root.destroy() 
+        nav.start_login_screen()
 
     def show_error(self, message):
         messagebox.showerror("Error", message)

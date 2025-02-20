@@ -2,9 +2,10 @@ from tkinter import *
 from tkinter import messagebox
 from PIL import Image, ImageTk
 from peer.client import PeerClient
-from screens.download import DownloadScreen
+import screens.navigation as nav
 import requests
 import threading
+import os
 
 class Login:
     def __init__(self, root):
@@ -82,27 +83,24 @@ class Login:
             response_data = response.json()
             shared_file_path = response_data["shared_file_path"]
 
+            shared_files = []
+            if os.path.isdir(shared_file_path):
+                shared_files = os.listdir(shared_file_path)
+
             client = PeerClient(peer_name=username, shared_files_path=shared_file_path)
             client.port = client.find_available_port()
+            client.shared_files = shared_files
 
             if client.register_with_tracker():
                 threading.Thread(target=client.start_peer, daemon=True).start()
                 self.root.destroy()
-                self.start_download_screen(client)
+                nav.start_download_screen(client)
         else:
             messagebox.showerror('Invalid', "Invalid username or password")
 
-    def start_download_screen(self, client):
-        download_root = Tk()
-        app = DownloadScreen(download_root, client)
-        download_root.mainloop()
-
     def signup_nav(self):
-        from screens.register import Register  # Import tại đây thay vì đầu file
         self.root.destroy()
-        register_root = Tk()
-        Register(register_root)
-        register_root.mainloop()
+        nav.start_register_screen()
 
 if __name__ == "__main__":
     login_root = Tk()

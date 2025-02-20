@@ -10,6 +10,7 @@ def initialize_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT NOT NULL,
             port INTEGER NOT NULL,
+            virtual_ip TEXT,
             shared_files TEXT
         )
     """)
@@ -25,17 +26,18 @@ def initialize_db():
     conn.close()
 
 # Thao tác với bảng peers
-def add_peer(ip, port, shared_files):
+def add_peer(ip, port, virtual_ip, shared_files):
+    shared_files_str = ",".join(shared_files) if shared_files else ""
     conn = sqlite3.connect("tracker.db")
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO peers (ip, port, shared_files) VALUES (?, ?, ?)", (ip, port, shared_files))
+    cursor.execute("INSERT INTO peers (ip, port, virtual_ip, shared_files) VALUES (?, ?, ?, ?)", (ip, port, virtual_ip, shared_files_str))
     conn.commit()
     conn.close()
 
-def remove_peer(peer_id):
+def remove_peer(ip, port):
     conn = sqlite3.connect("tracker.db")
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM peers WHERE id = ?", (peer_id,))
+    cursor.execute("DELETE FROM peers WHERE ip = ? AND port = ?", (ip, port))
     conn.commit()
     conn.close()
 
@@ -52,7 +54,15 @@ def get_all_peers():
     cursor.execute("SELECT * FROM peers")
     peers = cursor.fetchall()
     conn.close()
-    return [{"id": row[0], "ip": row[1], "port": row[2], "shared_files": row[3]} for row in peers]
+    return [{"id": row[0], "ip": row[1], "port": row[2], "virtual_ip": row[3], "shared_files": row[4]} for row in peers]
+
+def get_peer_through_virtual_ip(virtual_ip):
+    conn = sqlite3.connect("tracker.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM peers WHERE virtual_ip = ?", (virtual_ip,))
+    peer = cursor.fetchone()
+    conn.close()
+    return {"id": peer[0], "ip": peer[1], "port": peer[2], "virtual_ip": peer[3], "shared_files": peer[4]}
 
 def get_next_peer_id():
     conn = sqlite3.connect("tracker.db")
@@ -62,14 +72,14 @@ def get_next_peer_id():
     conn.close()
     return (result or 0) + 1
 
-# Find peers that have a specific file
 def find_peers_with_file(filename):
     conn = sqlite3.connect('tracker.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT ip, port FROM peers WHERE shared_files LIKE ?', (f'%{filename}%',))
+    cursor.execute('SELECT ip, virtual_ip, port FROM peers WHERE shared_files LIKE ?', (f'%{filename}%',))
     peers = cursor.fetchall()
     conn.close()
-    return [{'ip': peer[0], 'port': peer[1]} for peer in peers]
+    print(f"Peers containing '{filename}': {peers}")  
+    return [{'ip': peer[0], 'virtual_ip':peer[1], 'port': peer[2]} for peer in peers]
 
 # Thao tác với bảng accounts
 def add_account(username, password, shared_file_path):

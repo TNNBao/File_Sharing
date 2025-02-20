@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter import messagebox
 from PIL import Image, ImageTk
-from screens.login import Login
+import screens.navigation as nav
 import requests
 
 class Register:
@@ -20,7 +20,7 @@ class Register:
         
         Label(self.root, image=self.img, bg="white").place(x=50, y=50)
 
-        frame = Frame(self.root, width=350, height=350, bg="white")
+        frame = Frame(self.root, width=350, height=360, bg="white")
         frame.place(x=520, y=70)
 
         heading = Label(frame, text='Sign up', fg='#57a1f8', bg='white', font=('', 23, 'bold'))
@@ -91,15 +91,13 @@ class Register:
         if response.status_code == 201:
             messagebox.showinfo('Success', 'User registered successfully')
             self.root.destroy()
-            Login(Tk())
+            nav.start_login_screen()
         else:
             messagebox.showerror('Error', response.json()['message'])
 
     def signin_nav(self):
         self.root.destroy()
-        login_root = Tk()
-        Login(login_root)
-        login_root.mainloop()
+        nav.start_login_screen()
 
 if __name__ == "__main__":
     pass
